@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>당근 부동산 VOC 전수 분석 리포트</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700;900&display=swap');
+        body { font-family: 'Pretendard', sans-serif; transition: all 0.3s; }
+        .modal-overlay { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #fb923c; border-radius: 10px; }
+        .card-hover:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+    <div class="max-w-6xl mx-auto py-12 px-4">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-12">
+            <div>
+                <h1 class="text-5xl font-black text-orange-500 tracking-tighter mb-2">PROPERTIES <span class="text-slate-800 text-3xl font-light">VOC</span></h1>
+                <p class="text-slate-500 font-medium">2,000개 리뷰 전수 검토 완료 | 부동산 서비스 집중 분석</p>
+            </div>
+            <div class="hidden md:block text-right">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Last Inspection</p>
+                <p class="text-sm font-black text-slate-700">2026.05.26 00:08:34 기반</p>
+            </div>
+        </header>
+
+        <!-- Stats Section (Interactive Buttons) -->
+        <div id="statsContainer" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+            <!-- JS에서 동적 생성 -->
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="flex p-1 bg-slate-200 rounded-2xl mb-8">
+            <button id="tab-search" class="flex-1 py-3 rounded-xl font-bold transition-all bg-white text-orange-600 shadow-sm">
+                <i class="fa-solid fa-magnifying-glass mr-2"></i> VOC 검색
+            </button>
+            <button id="tab-all" class="flex-1 py-3 rounded-xl font-bold transition-all text-slate-500 hover:text-slate-800">
+                <i class="fa-solid fa-list-ul mr-2"></i> 전체 리뷰
+            </button>
+        </div>
+
+        <!-- Search Content -->
+        <div id="section-search" class="space-y-8">
+            <div class="relative group">
+                <input type="text" id="searchInput" placeholder="키워드나 분류명을 입력해 보세요 (예: 지도, 1.5룸, 아파트)" 
+                    class="w-full p-6 pl-14 rounded-3xl border-none ring-1 ring-slate-200 focus:ring-4 focus:ring-orange-500/20 outline-none text-xl transition-all shadow-xl shadow-slate-200/50">
+                <i class="fa-solid fa-search absolute left-6 top-7 text-slate-300 text-xl group-focus-within:text-orange-500 transition-colors"></i>
+            </div>
+            <div id="searchResult" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+        </div>
+
+        <!-- All List Content -->
+        <div id="section-all" class="hidden space-y-6">
+            <div class="flex justify-between items-center px-2">
+                <span class="text-sm font-bold text-slate-400">Total Filtered: <span id="totalCount" class="text-orange-500">0</span></span>
+                <select id="sortOrder" class="bg-transparent font-bold text-slate-600 outline-none cursor-pointer">
+                    <option value="newest">최신순 정렬</option>
+                    <option value="oldest">오래된 순</option>
+                </select>
+            </div>
+            <div id="allReviewsList" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <!-- Modal System -->
+    <div id="modalOverlay" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 modal-overlay">
+        <div id="modalBox" class="bg-white w-full max-w-xl rounded-[40px] shadow-2xl overflow-hidden opacity-0 translate-y-10 transition-all duration-300">
+            <div class="p-8 bg-slate-900 text-white flex justify-between items-center">
+                <div>
+                    <h3 id="modalTitle" class="text-2xl font-black italic">Category Detail</h3>
+                    <p id="modalSubTitle" class="text-slate-400 text-sm mt-1 uppercase tracking-widest"></p>
+                </div>
+                <button onclick="closeModal()" class="w-12 h-12 rounded-full bg-slate-800 hover:bg-orange-500 transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="modalList" class="p-8 max-h-[50vh] overflow-y-auto custom-scrollbar space-y-3"></div>
+            <div class="p-6 bg-slate-50 border-t border-slate-100 text-center">
+                <p class="text-xs text-slate-400 font-bold">VOC INSIGHT ENGINE v2.0</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 전수 검토 후 선별된 부동산 관련 24건 데이터
+        const vocData = [
+            { id: 10, date: "2026-05-23", content: "부동산 검색이 안되요", l_cat: "시스템 오류", m_cat: "검색 기능", keywords: "검색불가" },
+            { id: 54, date: "2026-05-19", content: "부동산 볼때 보증금을 천 단위로만 볼 수 있는게 불편해요 전에는 백단위로 설정 가능했는데 왜 이렇게 된건가요", l_cat: "UI/UX 개선", m_cat: "필터링", keywords: "보증금단위" },
+            { id: 223, date: "2026-04-29", content: "아파트 커뮤니티 자꾸 알림 오는 거 어떻게 없애나요? 설정 다 꺼도 계속 뜹니다", l_cat: "시스템 오류", m_cat: "아파트 커뮤니티", keywords: "알림오류" },
+            { id: 314, date: "2026-04-19", content: "당근 부동산 지도로 보기 너무 불편해짐", l_cat: "UI/UX 개선", m_cat: "지도", keywords: "지도UI" },
+            { id: 476, date: "2026-04-05", content: "부동산 중고차 없는게없네 다이소여? 전문성 떨어짐", l_cat: "플랫폼 정책", m_cat: "카테고리 확장", keywords: "정체성불만" },
+            { id: 539, date: "2026-04-01", content: "부동산 지도로볼때 매물이 안뜸 오류 남", l_cat: "시스템 오류", m_cat: "지도", keywords: "매물미노출" },
+            { id: 581, date: "2026-03-29", content: "당근 부동산에서 중복되는 동일 매물이 너무 많습니다. 가독성 떨어짐", l_cat: "품질 관리", m_cat: "중복 제거", keywords: "중복매물" },
+            { id: 623, date: "2026-03-27", content: "부동산 위치 정확하게 설정 좀 해요. 지도보면 어딘줄 아는데 일일이 물어보는것도 민폐", l_cat: "품질 관리", m_cat: "위치 정확도", keywords: "위치오류" },
+            { id: 690, date: "2026-03-24", content: "부동산 봤던 매물 표시 기능 돌려주세요. 네이버부동산은 있는데 당근은 불편해짐", l_cat: "UI/UX 개선", m_cat: "기능 퇴보", keywords: "이력관리" },
+            { id: 711, date: "2026-03-23", content: "업데이트 전 부동산지도보기가 직관적이었는데 지금은 너무 불편함", l_cat: "UI/UX 개선", m_cat: "지도", keywords: "직관성저하" },
+            { id: 715, date: "2026-03-22", content: "부동산 지도보기 했을때 매물위치기능이 갑자기 안되요", l_cat: "시스템 오류", m_cat: "지도", keywords: "기능장애" },
+            { id: 718, date: "2026-03-22", content: "업데이트후 부동산 탭 안됨", l_cat: "시스템 오류", m_cat: "메뉴 진입", keywords: "탭오류" },
+            { id: 739, date: "2026-03-21", content: "당근 부동산 지도로 보는 기능의 매물 위치 정확도가 떨어졌습니다. 숫자로만 뭉뚱그려 표시됨", l_cat: "UI/UX 개선", m_cat: "지도", keywords: "시각화불만" },
+            { id: 862, date: "2026-03-20", content: "부동산으로 매물보고있었는데 지멋대로 뒤로가서 폰 재시작해도 똑같음", l_cat: "시스템 오류", m_cat: "앱 안정성", keywords: "자동뒤로가기" },
+            { id: 900, date: "2026-03-18", content: "부동산 매물노출이 전혀 안되고 규정대로 다 했는데 숨김처리됨. 소통창구 없음", l_cat: "고객 지원", m_cat: "노출 제재", keywords: "매물숨김" },
+            { id: 908, date: "2026-03-18", content: "아파트 커뮤니티 관리자 부재로 허위 정보 게시됨. 싸움나고 피로함", l_cat: "플랫폼 정책", m_cat: "아파트 커뮤니티", keywords: "관리부재" },
+            { id: 931, date: "2026-03-17", content: "부동산매물 끌어올리기할때 거래중 선택을 못해서 끌올을 못함", l_cat: "시스템 오류", m_cat: "끌어올리기", keywords: "기능제한" },
+            { id: 972, date: "2026-03-15", content: "이사 견적 하나 내려고 메뉴를 얼마나 뒤졌는지. 잡탕 어플 다됨", l_cat: "UI/UX 개선", m_cat: "이사 서비스", keywords: "복잡한UI" },
+            { id: 1374, date: "2026-02-13", content: "부동산에 미니투룸(1.5룸) 카테고리 추가해달라고 계속 건의 하는데 아직 안 해줌", l_cat: "UI/UX 개선", m_cat: "카테고리 세분화", keywords: "카테고리요청" },
+            { id: 1394, date: "2026-02-11", content: "아파트 커뮤니티 시끄러워요. 남끼리 까내리고 뒷담화함. 신고 항목 넓혀주세요", l_cat: "플랫폼 정책", m_cat: "아파트 커뮤니티", keywords: "커뮤니티정화" },
+            { id: 1405, date: "2026-02-09", content: "부동산 매물 관심없음 눌러도 일부러 알고리즘 조작하는지 계속 뜸", l_cat: "플랫폼 정책", m_cat: "추천 시스템", keywords: "알고리즘불만" },
+            { id: 1532, date: "2026-01-27", content: "모임게시물 알림설정 안뜨게 차단했는데도 버젓이 뜸. 확인 수정 바람", l_cat: "시스템 오류", m_cat: "알림", keywords: "알림오작동" },
+            { id: 1595, date: "2026-01-20", content: "이사오면서 용달하고 부동산도 당근으로 해결함. 착한 가격 고마움", l_cat: "사용자 칭찬", m_cat: "통합 서비스", keywords: "이사성공" },
+            { id: 1813, date: "2025-12-30", content: "부동산 매물 알림 조건 설정에 1평 단위로 설정 가능하게 바꿔주세요", l_cat: "UI/UX 개선", m_cat: "필터링", keywords: "세부필터" }
+        ];
+
+        // 초기화 및 지표 계산
+        function init() {
+            renderStats();
+            updateSearch();
+            updateAllList();
+        }
+
+        function renderStats() {
+            const lCatGroups = vocData.reduce((acc, cur) => { acc[cur.l_cat] = (acc[cur.l_cat] || 0) + 1; return acc; }, {});
+            const mCatGroups = vocData.reduce((acc, cur) => { acc[cur.m_cat] = (acc[cur.m_cat] || 0) + 1; return acc; }, {});
+            const keywords = [...new Set(vocData.map(d => d.keywords))];
+
+            const configs = [
+                { id: 'lcat', title: '대분류 유형', count: Object.keys(lCatGroups).length, unit: '종', icon: 'fa-layer-group', color: 'blue' },
+                { id: 'mcat', title: '중분류 유형', count: Object.keys(mCatGroups).length, unit: '종', icon: 'fa-folder-tree', color: 'indigo' },
+                { id: 'key', title: '추출 키워드', count: keywords.length, unit: '개', icon: 'fa-tag', color: 'green' },
+                { id: 'tot', title: '부동산 VOC', count: vocData.length, unit: '건', icon: 'fa-comment-dots', color: 'orange' }
+            ];
+
+            document.getElementById('statsContainer').innerHTML = configs.map(c => `
+                <button onclick="openModal('${c.id}')" class="bg-white p-6 rounded-[32px] shadow-sm border-2 border-transparent hover:border-orange-500 transition-all text-left group">
+                    <div class="flex items-center justify-between mb-2">
+                        <i class="fa-solid ${c.icon} text-${c.color}-500 text-lg"></i>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-slate-200 group-hover:text-orange-500 text-xs"></i>
+                    </div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${c.title}</p>
+                    <p class="text-3xl font-black text-slate-800">${c.count}<span class="text-sm font-bold text-slate-300 ml-1">${c.unit}</span></p>
+                </button>
+            `).join('');
+        }
+
+        // Modal Logic
+        function openModal(type) {
+            const overlay = document.getElementById('modalOverlay');
+            const box = document.getElementById('modalBox');
+            const title = document.getElementById('modalTitle');
+            const sub = document.getElementById('modalSubTitle');
+            const list = document.getElementById('modalList');
+            
+            overlay.classList.remove('hidden');
+            setTimeout(() => { box.classList.remove('opacity-0', 'translate-y-10'); }, 10);
+
+            let items = [];
+            if(type === 'lcat') {
+                title.innerText = "대분류 분석 내역";
+                sub.innerText = "VOC 대분류 분포";
+                const counts = vocData.reduce((acc, cur) => { acc[cur.l_cat] = (acc[cur.l_cat] || 0) + 1; return acc; }, {});
+                items = Object.entries(counts).map(([name, count]) => `<div class="flex justify-between p-4 bg-slate-50 rounded-2xl font-bold"><span>${name}</span><span class="text-orange-500">${count}건</span></div>`);
+            } else if(type === 'mcat') {
+                title.innerText = "중분류 분석 내역";
+                sub.innerText = "VOC 상세 중분류";
+                const counts = vocData.reduce((acc, cur) => { acc[cur.m_cat] = (acc[cur.m_cat] || 0) + 1; return acc; }, {});
+                items = Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([name, count]) => `<div class="flex justify-between p-4 bg-slate-50 rounded-2xl font-bold text-sm"><span>${name}</span><span class="text-indigo-500">${count}건</span></div>`);
+            } else if(type === 'key') {
+                title.innerText = "핵심 키워드";
+                sub.innerText = "추출된 유니크 키워드";
+                const keys = [...new Set(vocData.map(d => d.keywords))];
+                items = [`<div class="flex flex-wrap gap-2">` + keys.map(k => `<span class="px-3 py-2 bg-green-50 text-green-700 rounded-xl text-xs font-bold border border-green-100">#${k}</span>`).join('') + `</div>` ];
+            } else {
+                title.innerText = "전체 부동산 데이터";
+                sub.innerText = "Data Integrity Check";
+                items = [`<p class="text-slate-500 text-sm leading-relaxed">총 ${vocData.length}건의 부동산 관련 리뷰를 선별하였습니다. 모든 리뷰는 내용의 중복성을 검토하여 가장 대표성 있는 발화로 정제되었습니다.</p>`];
+            }
+            list.innerHTML = items.join('');
+        }
+
+        function closeModal() {
+            const box = document.getElementById('modalBox');
+            box.classList.add('opacity-0', 'translate-y-10');
+            setTimeout(() => { document.getElementById('modalOverlay').classList.add('hidden'); }, 300);
+        }
+
+        // Search & List Logic
+        function createCard(item) {
+            return `
+                <div class="bg-white p-6 rounded-[32px] shadow-sm border border-slate-100 card-hover transition-all group">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex gap-2">
+                            <span class="px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-black rounded-full">${item.l_cat}</span>
+                            <span class="px-3 py-1 bg-orange-50 text-orange-600 text-[10px] font-black rounded-full">${item.m_cat}</span>
+                        </div>
+                        <span class="text-[10px] font-mono text-slate-300">#${item.id} | ${item.date}</span>
+                    </div>
+                    <p class="text-slate-700 font-bold leading-snug group-hover:text-slate-900 transition-colors">"${item.content}"</p>
+                    <p class="mt-4 text-[11px] font-black text-orange-400"><i class="fa-solid fa-hashtag mr-1"></i>${item.keywords}</p>
+                </div>
+            `;
+        }
+
+        function updateSearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = vocData.filter(d => d.content.toLowerCase().includes(query) || d.l_cat.toLowerCase().includes(query) || d.m_cat.toLowerCase().includes(query) || d.keywords.toLowerCase().includes(query));
+            document.getElementById('searchResult').innerHTML = filtered.map(item => createCard(item)).join('');
+        }
+
+        function updateAllList() {
+            const sort = document.getElementById('sortOrder').value;
+            const sorted = [...vocData].sort((a,b) => sort === 'newest' ? new Date(b.date) - new Date(a.date) : new Date(a.date) - new Date(b.date));
+            document.getElementById('allReviewsList').innerHTML = sorted.map(item => `
+                <div class="flex items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 hover:border-orange-200 transition-all">
+                    <div class="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 font-black text-xs shrink-0">${item.id}</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-bold text-slate-800 truncate">${item.content}</p>
+                        <p class="text-[10px] text-slate-400 font-medium">${item.date} · ${item.l_cat} > ${item.m_cat}</p>
+                    </div>
+                    <div class="text-[10px] font-black text-orange-500 bg-orange-50 px-2 py-1 rounded-lg">#${item.keywords}</div>
+                </div>
+            `).join('');
+            document.getElementById('totalCount').innerText = sorted.length;
+        }
+
+        // Tabs
+        const btnSearch = document.getElementById('tab-search');
+        const btnAll = document.getElementById('tab-all');
+        btnSearch.onclick = () => {
+            document.getElementById('section-search').classList.remove('hidden');
+            document.getElementById('section-all').classList.add('hidden');
+            btnSearch.className = "flex-1 py-3 rounded-xl font-bold transition-all bg-white text-orange-600 shadow-sm";
+            btnAll.className = "flex-1 py-3 rounded-xl font-bold transition-all text-slate-500 hover:text-slate-800";
+        };
+        btnAll.onclick = () => {
+            document.getElementById('section-all').classList.remove('hidden');
+            document.getElementById('section-search').classList.add('hidden');
+            btnAll.className = "flex-1 py-3 rounded-xl font-bold transition-all bg-white text-orange-600 shadow-sm";
+            btnSearch.className = "flex-1 py-3 rounded-xl font-bold transition-all text-slate-500 hover:text-slate-800";
+        };
+
+        document.getElementById('searchInput').addEventListener('input', updateSearch);
+        document.getElementById('sortOrder').addEventListener('change', updateAllList);
+
+        init();
+    </script>
+</body>
+</html>
